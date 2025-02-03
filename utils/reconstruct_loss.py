@@ -7,7 +7,6 @@ from typing import Tuple, List
 import torch
 from torch import nn
 
-
 class ReconstructionLoss(torch.nn.Module):
   """
   Loss function for tabular data reconstruction.
@@ -51,9 +50,6 @@ class ReconstructionLoss(torch.nn.Module):
     loss = (loss_cat + loss_con)/2
   
     return loss, prob_cat, target_cat, mask_cat
-
-
-
 
 if __name__ == '__main__':
   loss_func = ReconstructionLoss(num_cat=2, num_con=4, cat_offsets=torch.tensor([0, 4]))

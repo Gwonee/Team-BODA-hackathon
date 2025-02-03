@@ -10,6 +10,7 @@ import torch.nn.functional as F
 import pytorch_lightning as pl
 import torchmetrics
 from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LinearRegression
 from lightly.models.modules import SimCLRProjectionHead
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from pl_bolts.utils.self_supervised import torchvision_ssl_encoder
@@ -34,21 +35,26 @@ class Pretraining(pl.LightningModule):
       self.encoder_imaging_type = 'vit'
       self.encoder_imaging =  create_vit(self.hparams)
       self.pooled_dim = self.hparams.embedding_dim
+
     elif self.hparams.model.startswith('resnet'):
       self.encoder_imaging_type = 'resnet'
       self.encoder_imaging = torchvision_ssl_encoder(self.hparams.model, return_all_feature_maps=True)
       self.pooled_dim = 2048 if self.hparams.model=='resnet50' else 512
+
     self.projector_imaging = SimCLRProjectionHead(self.pooled_dim, self.hparams.embedding_dim, self.hparams.projection_dim)
 
   def initialize_tabular_encoder_and_projector(self) -> None:
     self.field_lengths_tabular = torch.load(self.hparams.field_lengths_tabular)
     self.cat_lengths_tabular = []
     self.con_lengths_tabular = []
+
     for x in self.field_lengths_tabular:
       if x == 1:
         self.con_lengths_tabular.append(x) 
+
       else:
         self.cat_lengths_tabular.append(x)
+
     self.encoder_tabular = TabularTransformerEncoder(self.hparams, self.cat_lengths_tabular, self.con_lengths_tabular)
     self.projector_tabular = SimCLRProjectionHead(self.hparams.tabular_embedding_dim, self.hparams.tabular_embedding_dim, self.hparams.projection_dim)
   
@@ -60,6 +66,14 @@ class Pretraining(pl.LightningModule):
     """
     Initializes classifier and metrics. Takes care to set correct number of classes for embedding similarity metric depending on loss.
     """
+    if self.hparams.task == "regression":
+      self.regression_metric_train = torchmetrics.MeanAbsoluteError()
+      self.regression_metric_val = torchmetrics.MeanAbsoluteError()
+
+      self.estimator = None
+      
+      return
+
     # Classifier
     self.estimator = None
 
@@ -157,6 +171,9 @@ class Pretraining(pl.LightningModule):
     return y[:,0,:]
 
   def calc_and_log_train_embedding_acc(self, logits, labels, modality: str) -> None:
+    if self.hparams.task == "regression":
+      return
+
     self.top1_acc_train(logits, labels)
     self.top5_acc_train(logits, labels)
     
@@ -164,6 +181,9 @@ class Pretraining(pl.LightningModule):
     self.log(f"{modality}.train.top5", self.top5_acc_train, on_epoch=True, on_step=False)
 
   def calc_and_log_val_embedding_acc(self, logits, labels, modality: str) -> None:
+    if self.hparams.task == "regression":
+      return
+    
     self.top1_acc_val(logits, labels)
     self.top5_acc_val(logits, labels)
     
@@ -171,6 +191,9 @@ class Pretraining(pl.LightningModule):
     self.log(f"{modality}.val.top5", self.top5_acc_val, on_epoch=True, on_step=False)
   
   def calc_and_log_train_cat_embedding_acc(self, logits, labels, mask, modality: str) -> None:
+    if self.hparams.task == "regression":
+      return
+    
     logits, labels = logits[mask].detach(), labels[mask].detach()
     # print(logits.shape, labels.shape)
     self.top1_acc_train_cat(logits, labels)
@@ -181,6 +204,9 @@ class Pretraining(pl.LightningModule):
     self.log(f"{modality}.train.categorical.auc", self.auc_train_cat, on_epoch=True, on_step=False)
 
   def calc_and_log_val_cat_embedding_acc(self, logits, labels, mask, modality: str) -> None:
+    if self.hparams.task == "regression":
+      return
+    
     logits, labels = logits[mask].detach(), labels[mask].detach()
     self.top1_acc_val_cat(logits, labels)
     self.top5_acc_val_cat(logits, labels)
@@ -190,16 +216,37 @@ class Pretraining(pl.LightningModule):
     self.log(f"{modality}.val.categorical.auc", self.auc_val_cal, on_epoch=True, on_step=False)
   
   def calc_and_log_train_itm_acc(self, logits, labels, modality: str) -> None:
+    if self.hparams.task == "regression":
+      return
+
     logits, labels = logits.detach(), labels.detach()
     self.acc_train_itm(logits, torch.nn.functional.one_hot(labels, num_classes=2))
     self.log(f"{modality}.train.ITMacc", self.acc_train_itm, on_epoch=True, on_step=False)
   
   def calc_and_log_val_itm_acc(self, logits, labels, modality: str) -> None:
+    if self.hparams.task == "regression":
+      return
+    
     logits, labels = logits.detach(), labels.detach()
     self.acc_val_itm(logits, torch.nn.functional.one_hot(labels, num_classes=2))
     self.log(f"{modality}.val.ITMacc", self.acc_val_itm, on_epoch=True, on_step=False)
 
   def training_epoch_end(self, train_step_outputs: List[Any]) -> None:
+    """
+    Train and log regression
+    """
+    if self.hparams.task == "regression":
+      embeddings, labels = self.stack_outputs(train_step_outputs)
+      regressor = LinearRegression().fit(embeddings, labels)
+
+      preds = regressor.predict(embeddings)
+      preds_tensor = torch.tensor(preds, dtype=torch.float, device=labels.device)
+
+      self.regression_metric_train(preds_tensor, labels)
+      self.log('regression.train.mae', self.regression_metric_train, on_epoch=True, on_step=False)
+
+      return
+
     """
     Train and log classifier
     """

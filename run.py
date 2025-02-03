@@ -61,7 +61,7 @@ def run(args: DictConfig):
 
     return args
   
-  base_dir = os.path.abspath(os.path.join(os.getcwd(), 'results'))
+  base_dir = os.path.abspath(os.path.join(os.getcwd(), 'result'))
   
   exp_name = f'{args.exp_name}_{args.target}_{now.strftime("%m%d_%H%M")}'
   if args.use_wandb:
@@ -95,7 +95,7 @@ def run(args: DictConfig):
     print('=================================================================================')
     torch.cuda.empty_cache()
     pretrain(args, wandb_logger)
-    args.checkpoint = os.path.join(base_dir, 'runs', args.datatype, f'checkpoint_last_epoch_{args.max_epochs-1:02}.ckpt')
+    args.checkpoint = os.path.join(base_dir, 'runs', f'checkpoint_last_epoch_{args.max_epochs-1:02}.ckpt')
   
   if args.test:
     test(args, wandb_logger)

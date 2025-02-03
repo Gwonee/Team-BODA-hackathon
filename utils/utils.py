@@ -19,6 +19,7 @@ def create_logdir(name: str, resume_training: bool, wandb_logger):
   if os.path.exists(logdir) and not resume_training:
     raise Exception(f'Run {run_name} already exists. Please delete the folder {logdir} or choose a different run name.')
   os.makedirs(logdir,exist_ok=True)
+
   return logdir
 
 
@@ -30,11 +31,13 @@ def convert_to_ts(x, **kwargs):
   x = np.clip(x, 0, 255) / 255
   x = torch.from_numpy(x).float()
   x = x.permute(2,0,1)
+
   return x
 
 def convert_to_ts_01(x, **kwargs):
   x  = torch.from_numpy(x).float()
   x = x.permute(2,0,1)
+
   return x
 
 
@@ -52,6 +55,7 @@ def grab_image_augmentations(img_size: int, target: str, augmentation_speedup: b
                     A.HorizontalFlip(p=0.5),
                     A.Lambda(name='convert2tensor', image=convert_to_ts)
                 ])
+
     else:
       transform = transforms.Compose([
         transforms.RandomApply([transforms.ColorJitter(brightness=0.8, contrast=0.8, saturation=0.8)], p=0.8),
@@ -61,7 +65,9 @@ def grab_image_augmentations(img_size: int, target: str, augmentation_speedup: b
         transforms.RandomHorizontalFlip(p=0.5),
         transforms.Lambda(convert_to_float)
       ])
+
     print('Using dvm transform for train augmentation')
+
   else:
     if augmentation_speedup:
       transform = A.Compose([
@@ -71,6 +77,7 @@ def grab_image_augmentations(img_size: int, target: str, augmentation_speedup: b
                     A.RandomResizedCrop(height=img_size, width=img_size, scale=(0.2, 1.0)),
                     A.Lambda(name='convert2tensor', image=convert_to_ts_01)
                 ])
+
     else:
       transform = transforms.Compose([
         transforms.RandomHorizontalFlip(),
@@ -79,7 +86,9 @@ def grab_image_augmentations(img_size: int, target: str, augmentation_speedup: b
         transforms.RandomResizedCrop(size=img_size, scale=(0.2,1)),
         transforms.Lambda(convert_to_float)
       ])
+
     print('Using cardiac transform for train augmentation')
+
   return transform
 
 
@@ -96,6 +105,7 @@ def grab_soft_eval_image_augmentations(img_size: int, target: str, augmentation_
                   A.RandomResizedCrop(height=img_size, width=img_size, scale=(0.8, 1.0)),
                   A.Lambda(name='convert2tensor', image=convert_to_ts)
       ])
+
     else:
       transform = transforms.Compose([
         transforms.RandomHorizontalFlip(),
@@ -104,7 +114,9 @@ def grab_soft_eval_image_augmentations(img_size: int, target: str, augmentation_
         transforms.RandomResizedCrop(size=img_size, scale=(0.8,1)),
         transforms.Lambda(convert_to_float)
       ])
+
     print('Using dvm transform for soft eval augmentation')
+
   else:
     if augmentation_speedup:
       transform = A.Compose([
@@ -122,7 +134,9 @@ def grab_soft_eval_image_augmentations(img_size: int, target: str, augmentation_
         transforms.RandomResizedCrop(size=img_size, scale=(0.8,1)),
         transforms.Lambda(convert_to_float)
       ])
+
     print('Using cardiac transform for soft eval augmentation')
+
   return transform
 
 
@@ -140,6 +154,7 @@ def grab_hard_eval_image_augmentations(img_size: int, target: str, augmentation_
                     A.HorizontalFlip(p=0.5),
                     A.Lambda(name='convert2tensor', image=convert_to_ts)
                 ])
+
     else:
       transform = transforms.Compose([
         transforms.RandomApply([transforms.ColorJitter(brightness=0.8, contrast=0.8, saturation=0.8)], p=0.8),
@@ -149,7 +164,9 @@ def grab_hard_eval_image_augmentations(img_size: int, target: str, augmentation_
         transforms.RandomHorizontalFlip(p=0.5),
         transforms.Lambda(convert_to_float) 
       ])
+
     print('Using dvm transform for hard eval augmentation')
+
   else:
     if augmentation_speedup:
       transform = A.Compose([
@@ -159,6 +176,7 @@ def grab_hard_eval_image_augmentations(img_size: int, target: str, augmentation_
                     A.RandomResizedCrop(height=img_size, width=img_size, scale=(0.6, 1.0)),
                     A.Lambda(name='convert2tensor', image=convert_to_ts_01)
                 ])
+
     else:
       transform = transforms.Compose([
         transforms.RandomHorizontalFlip(),
@@ -167,7 +185,9 @@ def grab_hard_eval_image_augmentations(img_size: int, target: str, augmentation_
         transforms.RandomResizedCrop(size=img_size, scale=(0.6,1)),
         transforms.Lambda(convert_to_float)
       ])
+
     print('Using cardiac transform for hard eval augmentation')
+
   return transform
 
 def grab_wids(category: str):
@@ -180,10 +200,13 @@ def grab_wids(category: str):
 
   if category == 'Boat':
     return wids_b
+
   elif category == 'DomesticCat':
     return wids_c
+
   elif category == 'DomesticDog':
     return wids_d
+    
   else:
     raise ValueError('Category not recognized')
 
@@ -194,8 +217,10 @@ def grab_arg_from_checkpoint(args: str, arg_name: str):
   if args.checkpoint:
     ckpt = torch.load(args.checkpoint)
     load_args = ckpt['hyper_parameters']
+
   else:
     load_args = args
+
   return load_args[arg_name]
 
 def chkpt_contains_arg(ckpt_path: str, arg_name: str):
@@ -203,6 +228,7 @@ def chkpt_contains_arg(ckpt_path: str, arg_name: str):
   Checks if a checkpoint contains a given argument.
   """
   ckpt = torch.load(ckpt_path)
+
   return arg_name in ckpt['hyper_parameters']
 
 def prepend_paths(hparams):
