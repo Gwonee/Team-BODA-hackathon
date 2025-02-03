@@ -103,6 +103,7 @@ class ContrastiveReconstructImagingAndTabularDataset(Dataset):
       for r in reader:
         r2 = [float(r1) for r1 in r]
         data.append(r2)
+
     return data
 
   def generate_marginal_distributions(self) -> None:
@@ -208,7 +209,7 @@ class ContrastiveReconstructImagingAndTabularDataset(Dataset):
     tabular_views = tabular_views + [torch.from_numpy(mask), torch.from_numpy(mask_special)]
     if self.one_hot_tabular:
       tabular_views = [self.one_hot_encode(tv) for tv in tabular_views]
-    label = torch.tensor(int(self.labels[index]), dtype=torch.long)
+    label = torch.tensor(self.labels[index], dtype=torch.float)
     unaugmented_tabular = torch.tensor(self.data_tabular[index], dtype=torch.float)
     return imaging_views, tabular_views, label, unaugmented_image, unaugmented_tabular 
 

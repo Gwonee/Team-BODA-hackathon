@@ -16,7 +16,6 @@ from datasets.ContrastiveImageDataset import ContrastiveImageDataset
 from datasets.ContrastiveTabularDataset import ContrastiveTabularDataset
 from datasets.MaskTabularDataset import MaskTabularDataset
 
-from models.MultimodalSimCLR import MultimodalSimCLR
 from models.Tips.TipModel3Loss import TIP3Loss
 
 def load_datasets(hparams):
@@ -93,10 +92,6 @@ def select_model(hparams, train_dataset):
       # TIP
       model = TIP3Loss(hparams)
       print('Using TIP3Loss')
-
-    else:
-      # MMCL
-      model = MultimodalSimCLR(hparams)
 
   else:
     raise Exception(f'Unknown datatype {hparams.datatype}')

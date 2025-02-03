@@ -7,9 +7,23 @@ from pytorch_lightning.utilities import rank_zero_warn
 from torch import Tensor, nn
 from torch.nn import functional as F
 from torch.optim import Optimizer
-from torchmetrics.functional.classification import binary_auroc, multiclass_auroc, binary_accuracy, multiclass_accuracy
+from torchmetrics.functional.regression import mean_absolute_error
 
 from pl_bolts.models.self_supervised.evaluator import SSLEvaluator
+
+def r2score(preds: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    """
+    R² score 계산 함수.
+    R² = 1 - (SS_res / SS_tot)
+    """
+    target = target.float()
+    preds = preds.float()
+    target_mean = target.mean()
+
+    ss_tot = ((target - target_mean) ** 2).sum()
+    ss_res = ((target - preds) ** 2).sum()
+
+    return 1 - ss_res / ss_tot
 
 
 class SSLOnlineEvaluator(Callback):  # pragma: no cover
@@ -144,13 +158,16 @@ class SSLOnlineEvaluator(Callback):  # pragma: no cover
         if self.swav:
             x, y = batch
             x = x[0]
+
         elif self.multimodal and self.strategy == 'comparison':
             x_i, _, y, x_orig = batch
             x = x_orig
+
         elif self.multimodal and self.strategy == 'tip':
             x_i, _, y, x_orig, x_t_orig = batch 
             x = x_orig
             x_t = x_t_orig
+
         else:
             _, x, y = batch
         
@@ -158,12 +175,16 @@ class SSLOnlineEvaluator(Callback):  # pragma: no cover
             # last input is for online eval
             x = x.to(device)
             y = y.to(device)
+
             return x, y, None
+
         elif self.strategy == 'tip':
             x = x.to(device)
             y = y.to(device)
             x_t = x_t.to(device)
+
             return x, y, x_t
+
         else:
             Exception('Strategy must be comparison or tip')
 
@@ -179,17 +200,15 @@ class SSLOnlineEvaluator(Callback):  # pragma: no cover
 
         # forward pass
         mlp_logits = self.online_evaluator(representations)  # type: ignore[operator]
-        mlp_loss = F.cross_entropy(mlp_logits, y)
+        if mlp_logits.dim() > 1 and mlp_logits.size(-1) == 1:
+            mlp_logits = mlp_logits.squeeze(-1)
 
-        mlp_logits_sm = mlp_logits.softmax(dim=1)
-        if self.num_classes == 2:
-          auc = binary_auroc(mlp_logits_sm[:, 1], y)
-          acc = binary_accuracy(mlp_logits_sm[:, 1], y)
-        else:
-          auc = multiclass_auroc(mlp_logits_sm, y, self.num_classes)
-          acc = multiclass_accuracy(mlp_logits_sm, y, self.num_classes)
+        mlp_loss = F.mse_loss(mlp_logits, y)
 
-        return acc, auc, mlp_loss
+        r2 = r2score(mlp_logits, y)
+        mae = mean_absolute_error(mlp_logits, y)
+
+        return r2, mae, mlp_loss
 
     def on_train_batch_end(
         self,
@@ -199,16 +218,16 @@ class SSLOnlineEvaluator(Callback):  # pragma: no cover
         batch: Sequence,
         batch_idx: int
     ) -> None:
-        train_acc, train_auc, mlp_loss = self.shared_step(pl_module, batch)
+        train_r2, train_mae, mlp_loss = self.shared_step(pl_module, batch)
 
         # update finetune weights
         mlp_loss.backward()
         self.optimizer.step()
         self.optimizer.zero_grad()
 
-        pl_module.log("classifier.train.loss", mlp_loss, on_step=False, on_epoch=True, sync_dist=True)
-        pl_module.log("classifier.train.auc", train_auc, on_step=False, on_epoch=True, sync_dist=True)
-        pl_module.log("classifier.train.acc", train_acc, on_step=False, on_epoch=True, sync_dist=True)
+        pl_module.log("regressor.train.loss", mlp_loss, on_step=False, on_epoch=True, sync_dist=True)
+        pl_module.log("regressor.train.r2", train_r2, on_step=False, on_epoch=True, sync_dist=True)
+        pl_module.log("regressor.train.mae", train_mae, on_step=False, on_epoch=True, sync_dist=True)
 
 
     def on_validation_batch_end(
@@ -220,10 +239,10 @@ class SSLOnlineEvaluator(Callback):  # pragma: no cover
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
-        val_acc, val_auc, mlp_loss = self.shared_step(pl_module, batch)
-        pl_module.log("classifier.val.loss", mlp_loss, on_step=False, on_epoch=True, sync_dist=True)
-        pl_module.log("classifier.val.auc", val_auc, on_step=False, on_epoch=True, sync_dist=True)
-        pl_module.log("classifier.val.acc", val_acc, on_step=False, on_epoch=True, sync_dist=True)
+        val_r2, val_mae, mlp_loss = self.shared_step(pl_module, batch)
+        pl_module.log("regressor.val.loss", mlp_loss, on_step=False, on_epoch=True, sync_dist=True)
+        pl_module.log("regressor.val.r2", val_r2, on_step=False, on_epoch=True, sync_dist=True)
+        pl_module.log("regressor.val.mae", val_mae, on_step=False, on_epoch=True, sync_dist=True)
 
     def on_save_checkpoint(self, trainer: Trainer, pl_module: LightningModule, checkpoint: Dict[str, Any]) -> dict:
         return {"state_dict": self.online_evaluator.state_dict(), "optimizer_state": self.optimizer.state_dict()}
