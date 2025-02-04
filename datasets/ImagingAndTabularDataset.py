@@ -203,7 +203,7 @@ class ImagingAndTabularDataset(Dataset):
     if self.eval_one_hot:
       tab = self.one_hot_encode(tab).to(torch.float)
 
-    label = torch.tensor(self.labels[index], dtype=torch.long)
+    label = torch.tensor(self.labels[index], dtype=torch.float)
 
     if self.missing_tabular:
       missing_mask = torch.from_numpy(self.missing_mask_data[index])

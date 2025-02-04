@@ -124,10 +124,12 @@ class TIPBackbone(nn.Module):
       x_m = self.encoder_multimodal(x=x_t, image_features=x_i)
     else:
       x_m, attn = self.encoder_multimodal(x=x_t, image_features=x_i, visualize=visualize)
+
     x = self.classifier(x_m[:,0,:])
 
     if visualize==False:
       return x
+      
     else:
       return x, attn
 

@@ -62,16 +62,26 @@ class ImagingModel(nn.Module):
       model = models.resnet18(pretrained=False, num_classes=100)
       self.pooled_dim = 512
     elif args['model'] == 'resnet50':
-      model = models.resnet50(pretrained=False, num_classes=100)
+      model = models.resnet50(pretrained=False, num_classes=1)
       self.pooled_dim = 2048
     else:
       raise Exception('Invalid architecture. Please select either resnet18 or resnet50.')
     self.encoder = nn.Sequential(*list(model.children())[:-1])
 
+
   def forward(self, x: torch.Tensor) -> torch.Tensor:
+    if isinstance(x, list):
+        x = x[0]
+    
     if self.bolt_encoder:
-      x = self.encoder(x)[0]
+        x = self.encoder(x)[0]
     else:
-      x = self.encoder(x).squeeze()
+        x = self.encoder(x)
+    
+    x = x.view(x.size(0), -1)  # Flatten 
+    
     x = self.classifier(x)
+    
+    x = x.squeeze(-1)
+    
     return x
