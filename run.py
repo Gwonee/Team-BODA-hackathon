@@ -20,7 +20,7 @@ from utils.utils import grab_arg_from_checkpoint, prepend_paths, re_prepend_path
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 torch.multiprocessing.set_sharing_strategy('file_system')
-torch.backends.cudnn.determinstic = True
+torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 hydra.HYDRA_FULL_ERROR = 1
 
@@ -61,7 +61,8 @@ def run(args: DictConfig):
 
     return args
   
-  base_dir = os.path.abspath(os.path.join(os.getcwd(), 'result'))
+  base_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+  base_dir = os.path.join(os.path.dirname(os.path.dirname(base_dir)), 'result')
   
   exp_name = f'{args.exp_name}_{args.target}_{now.strftime("%m%d_%H%M")}'
   if args.use_wandb:

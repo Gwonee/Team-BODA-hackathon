@@ -11,7 +11,6 @@ from torchvision.io import read_image
 import albumentations as A
 import numpy as np
 
-
 def convert_to_float(x):
   return x.float()
 
@@ -156,8 +155,9 @@ class ContrastiveImagingAndTabularDataset(Dataset):
       else:
         im = read_image(im)
         im = im / 255 if self.dataset_name == 'dvm' else im
-    # ims = [self.transform(image=im)['image']] if self.augmentation_speedup else [self.transform(im)]
-    ims = [torch.tensor(0, dtype=torch.float)] # Placeholder
+
+    ims = [self.transform(image=im)['image']] if self.augmentation_speedup else [self.transform(im)]
+
     if random.random() < self.augmentation_rate:
       ims.append(self.transform(image=im)['image'] if self.augmentation_speedup else self.transform(im))
     else:
@@ -172,7 +172,7 @@ class ContrastiveImagingAndTabularDataset(Dataset):
     tabular_views = [torch.tensor(self.data_tabular[index], dtype=torch.float), torch.tensor(self.corrupt(self.data_tabular[index]), dtype=torch.float)]
     if self.one_hot_tabular:
       tabular_views = [self.one_hot_encode(tv) for tv in tabular_views]
-    label = torch.tensor(self.labels[index], dtype=torch.long)
+    label = torch.tensor(self.labels[index], dtype=torch.float)
     return imaging_views, tabular_views, label, unaugmented_image
 
   def __len__(self) -> int:
