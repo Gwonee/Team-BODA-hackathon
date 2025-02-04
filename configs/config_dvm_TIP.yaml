@@ -49,7 +49,7 @@ temperature: 0.1
 projection_dim: 128
 use_projection_head: True
 
-loss: regression
+loss: clip
 view: augmented
 lambda_0: 0.5
 momentum: 0.99
@@ -142,8 +142,6 @@ tabular_transformer_num_layers: 4
 multimodal_transformer_num_layers: 4
 multimodal_embedding_dim: 512
 drop_rate: 0.0
-
-
 
 transform:
 version:
