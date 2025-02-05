@@ -37,9 +37,9 @@ wandb_project: test_code
 sql_address: 
 
 # missing tabular
-missing_tabular: False # True
-missing_strategy: None # value
-missing_rate: None # 0.3
+missing_tabular: True
+missing_strategy: value
+missing_rate: 0.3
 
 # Multimodal
 scheduler: anneal
