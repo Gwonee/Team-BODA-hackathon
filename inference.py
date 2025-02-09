@@ -155,8 +155,8 @@ def infer_sales_amount_and_features(model, image_path, tabular_data, config, dev
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    model_path = "/data/ephemeral/home/level4-cv-finalproject-hackathon-cv-17-lv3/models/checkpoint/server1_model.pt"
-    config_path = "/data/ephemeral/home/level4-cv-finalproject-hackathon-cv-17-lv3/configs/config.yaml"
+    model_path = "path/to/your/model"
+    config_path = "path/to/your/config"
     
     config = load_config(config_path)
     model = load_model(model_path, device)
@@ -180,15 +180,14 @@ if __name__ == "__main__":
         "First_release_year": 2001
     }
     # "Sales_amt": 29093.0
-    image_path = '/data/ephemeral/home/level4-cv-finalproject-hackathon-cv-17-lv3/data/resized_DVM/Ford/Focus/2003/Black/Ford$$Focus$$2003$$Black$$29_14$$434$$image_0.jpg'
+    image_path = 'path/to/your/image'
 
     image, categorical, continuous = preprocess_data(image_path, tabular_data_sample, config, device)
 
     with torch.no_grad():
-        predicted_sales_amt, predicted_features = infer_sales_amount_and_features(model, image_path, tabular_data_sample, config, device)
+        predicted_sales_amt = infer_sales_amount_and_features(model, image_path, tabular_data_sample, config, device)
 
     print(f"Predicted Sales Amount: {predicted_sales_amt}")
-    print(f"Predicted Features: {predicted_features}")
 
     denorm_continuous = {}
 
