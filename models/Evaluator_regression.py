@@ -35,16 +35,17 @@ class Evaluator_Regression(pl.LightningModule):
 
     print(self.model)
 
-  def test_step(self, batch: Tuple[torch.Tensor, torch.Tensor], _) -> None:
-    """
-    Runs test step
-    """
-    x, y = batch 
-    y_hat = self.forward(x)
-    y_hat = y_hat.detach()
-
+  def test_step(self, batch, batch_idx):
+    x, y = batch
+    y_hat = self(x)
+    
+    # 예측값의 차원을 타겟과 맞추기 위해 squeeze 적용
+    y_hat = y_hat.squeeze()
+    
     self.mae_test(y_hat, y)
     self.pcc_test(y_hat, y)
+    
+    return {'loss': self.criterion(y_hat, y)}
 
   def test_epoch_end(self, _) -> None:
     """
@@ -64,47 +65,44 @@ class Evaluator_Regression(pl.LightningModule):
     y_hat = self.model(x)
     return y_hat
 
-  def training_step(self, batch: Tuple[torch.Tensor, torch.Tensor], _) -> torch.Tensor:
-    """
-    Train and log.
-    """
+  def training_step(self, batch, batch_idx):
     x, y = batch
-
-    y_hat = self.forward(x)
+    y_hat = self.model(x)
+    y_hat = y_hat.squeeze()  # [256, 1] -> [256] 차원 맞추기
+    
     loss = self.criterion(y_hat, y)
-    y_hat = y_hat.detach()
-
     self.mae_train(y_hat, y)
     self.pcc_train(y_hat, y)
-
-    self.log('eval.train.loss', loss, on_epoch=True, on_step=False)
-    self.log('eval.train.mae', self.mae_train, on_epoch=True, on_step=False)
-
+    
+    self.log('eval.train.loss', loss, on_step=False, on_epoch=True)
+    self.log('eval.train.mae', self.mae_train, on_step=False, on_epoch=True)
+    self.log('eval.train.pcc', self.pcc_train, on_step=False, on_epoch=True)
+    
     return loss
-  
-  def training_epoch_end(self, _) -> None:
+
+  def training_epoch_end(self, outputs):
     epoch_pcc_train = self.pcc_train.compute()
     epoch_pcc_train_mean = epoch_pcc_train.mean()
-    self.log('eval.train.pcc.mean', epoch_pcc_train_mean, on_epoch=True, on_step=False, metric_attribute=self.pcc_train)
+    self.log('eval.train.pcc.mean', epoch_pcc_train_mean, on_epoch=True, on_step=False)
+    self.log('eval.train.mae.mean', self.mae_train.compute().mean(), on_epoch=True, on_step=False)
     self.pcc_train.reset()
 
-  def validation_step(self, batch: Tuple[torch.Tensor, torch.Tensor], _) -> torch.Tensor:
-    """
-    Validate and log
-    """
+  def validation_step(self, batch, batch_idx):
     x, y = batch
-
-    y_hat = self.forward(x)
+    y_hat = self.model(x)
+    y_hat = y_hat.squeeze()  # [256, 1] -> [256] 차원 맞추기
+    
     loss = self.criterion(y_hat, y)
-    y_hat = y_hat.detach()
-
     self.mae_val(y_hat, y)
     self.pcc_val(y_hat, y)
     
-    self.log('eval.val.loss', loss, on_epoch=True, on_step=False)
-
+    self.log('eval.val.loss', loss, on_step=False, on_epoch=True)
+    self.log('eval.val.mae', self.mae_val, on_step=False, on_epoch=True)
+    self.log('eval.val.pcc', self.pcc_val, on_step=False, on_epoch=True)
     
-  def validation_epoch_end(self, _) -> None:
+    return loss
+
+  def validation_epoch_end(self, outputs):
     """
     Compute validation epoch metrics and check for new best values
     """
@@ -115,8 +113,8 @@ class Evaluator_Regression(pl.LightningModule):
     epoch_pcc_val = self.pcc_val.compute()
     epoch_pcc_val_mean = torch.mean(epoch_pcc_val)
 
-    self.log('eval.val.mae', epoch_mae_val, on_epoch=True, on_step=False, metric_attribute=self.mae_val)
-    self.log('eval.val.pcc.mean', epoch_pcc_val_mean, on_epoch=True, on_step=False, metric_attribute=self.pcc_val)
+    self.log('eval.val.mae.mean', epoch_mae_val.mean(), on_epoch=True, on_step=False)
+    self.log('eval.val.pcc.mean', epoch_pcc_val_mean, on_epoch=True, on_step=False)
     
     self.best_val_score = max(self.best_val_score, epoch_pcc_val_mean)
     

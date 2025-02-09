@@ -11,7 +11,7 @@ from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 from einops import rearrange,repeat
 import sys
 # TODO: Change the path to your own project directory if you want to run this file alone for debugging 
-sys.path.append('/data/ephemeral/home/final_project/TIP')
+sys.path.append('path/to/your/project')
 from models.Tip_utils.pieces import DotDict
 
 import torch
@@ -34,6 +34,7 @@ class Mlp(nn.Module):
         x = self.drop(x)
         x = self.fc2(x)
         x = self.drop(x)
+
         return x
 
 
@@ -48,6 +49,7 @@ class Attention(nn.Module):
            self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
            self.proj = nn.Linear(dim, dim)
            self.proj_drop = nn.Dropout(proj_drop)
+
         self.attn_drop = nn.Dropout(attn_drop)
         self.save_attention = False
         self.save_gradients = False
@@ -69,6 +71,7 @@ class Attention(nn.Module):
         if self.with_qkv:
            qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
            q, k, v = qkv[0], qkv[1], qkv[2]
+
         else:
            qkv = x.reshape(B, N, self.num_heads, C // self.num_heads).permute(0, 2, 1, 3)
            q, k, v  = qkv, qkv, qkv
@@ -81,8 +84,10 @@ class Attention(nn.Module):
         attn = attn.softmax(dim=-1)
         if self.save_attention:
             self.save_attention_map(attn)
+
         if self.save_gradients:
             attn.register_hook(self.save_attn_gradients)
+
         attn = self.attn_drop(attn)
         # print(attn)
 
@@ -90,8 +95,10 @@ class Attention(nn.Module):
         if self.with_qkv:
            x = self.proj(x)
            x = self.proj_drop(x)
+
         if visualize == False:
             return x
+
         else:
             return x, attn
 
@@ -131,8 +138,10 @@ class CrossAttention(nn.Module):
         q = self.q_proj(q).reshape(B,N_q,self.num_heads,K//self.num_heads).permute(0,2,1,3)  # (B,H,N,C)
         attn = (q @ k.transpose(-2,-1))*self.scale
         attn = attn.softmax(dim=-1)
+
         if self.save_attention:
             self.save_attention_map(attn)
+
         if self.save_gradients:
             attn.register_hook(self.save_attn_gradients)
         attn = self.attn_drop(attn)
@@ -142,6 +151,7 @@ class CrossAttention(nn.Module):
         out = self.proj_drop(out)
         if visualize == False:
             return out
+
         else:
             return out, attn
 
@@ -175,7 +185,9 @@ class Block(nn.Module):
                 assert encoder_hidden_states is not None
                 x = x + self.drop_path(self.cross_attn(self.cross_norm(x), encoder_hidden_states))
             x = x + self.drop_path(self.mlp(self.norm2(x)))
+
             return x
+
         else:
             tmp, self_attn = self.attn(self.norm1(x), mask=mask, visualize=visualize)
             x = x+self.drop_path(tmp)
@@ -183,7 +195,9 @@ class Block(nn.Module):
                 assert encoder_hidden_states is not None      
                 tmp, cross_attn = self.cross_attn(self.cross_norm(x), encoder_hidden_states, visualize=visualize)
                 x = x+self.drop_path(tmp)
+
             x = x + self.drop_path(self.mlp(self.norm2(x)))
+
             return x, {'self_attn':self_attn, 'cross_attn':cross_attn if self.is_cross_attention else None}
 
 
@@ -235,9 +249,11 @@ class TabularTransformerEncoder(nn.Module):
     def _init_weights(self, m):
         if isinstance(m, (nn.Linear, nn.Embedding)):
             m.weight.data.normal_(mean=0.0, std=.02)
+
         elif isinstance(m, nn.LayerNorm):
             m.bias.data.zero_()
             m.weight.data.fill_(1.0)
+
         if isinstance(m, nn.Linear) and m.bias is not None:
             m.bias.data.zero_()
 
@@ -260,6 +276,7 @@ class TabularTransformerEncoder(nn.Module):
         x = x+column_embed
         x = self.norm(x)
         x = self.dropout(x)
+
         return x
     
     def forward(self, x: torch.Tensor, mask: torch.Tensor=None, mask_special: torch.Tensor=None) -> torch.Tensor:
@@ -276,6 +293,7 @@ class TabularTransformerEncoder(nn.Module):
             mask = mask[:,None,:,:]
             mask = mask*(-1e9)
             assert x.shape[1] == mask.shape[2]
+
         for transformer_block in self.transformer_blocks:
             x = transformer_block(x, mask=mask)
             # x = transformer_block(x)
@@ -303,9 +321,11 @@ class MultimodalTransformerEncoder(nn.Module):
     def _init_weights(self, m):
         if isinstance(m, (nn.Linear, nn.Embedding)):
             m.weight.data.normal_(mean=0.0, std=.02)
+
         elif isinstance(m, nn.LayerNorm):
             m.bias.data.zero_()
             m.weight.data.fill_(1.0)
+
         if isinstance(m, nn.Linear) and m.bias is not None:
             m.bias.data.zero_()
     
@@ -313,6 +333,7 @@ class MultimodalTransformerEncoder(nn.Module):
         if len(image_features.shape) == 4:
             B,C,H,W = image_features.shape
             image_features = image_features.reshape(B,C,H*W).permute(0,2,1)
+
         image_features = self.image_proj(image_features)
         image_features = self.image_norm(image_features)
         x = self.tabular_proj(x)
@@ -320,14 +341,18 @@ class MultimodalTransformerEncoder(nn.Module):
         if visualize == False:
             for i, transformer_block in enumerate(self.transformer_blocks):
                 x = transformer_block(x, encoder_hidden_states=image_features)
+
             x = self.norm(x)
+
             return x
+
         else:
             attns = []
             for i, transformer_block in enumerate(self.transformer_blocks):
                 x, attn = transformer_block(x, encoder_hidden_states=image_features, visualize=visualize)
                 attns.append(attn)
             x = self.norm(x)
+
             return x, attns
 
 
@@ -340,6 +365,7 @@ class TabularPredictor(nn.Module):
         self.num_con = len(con_lengths_tabular)
         if num_unique_cat is None:
             self.num_unique_cat = sum(cat_lengths_tabular)
+
         else:
             self.num_unique_cat = num_unique_cat
         # categorical classifier
@@ -352,9 +378,11 @@ class TabularPredictor(nn.Module):
     def _init_weights(self, m):
         if isinstance(m, (nn.Linear, nn.Embedding)):
             m.weight.data.normal_(mean=0.0, std=.02)
+
         elif isinstance(m, nn.LayerNorm):
             m.bias.data.zero_()
             m.weight.data.fill_(1.0)
+
         if isinstance(m, nn.Linear) and m.bias is not None:
             m.bias.data.zero_()
         
@@ -366,57 +394,3 @@ class TabularPredictor(nn.Module):
         # continuous regessor
         con_x = self.con_regressor(x[:, self.num_cat:])
         return (cat_x, con_x)
-
-
-
-if __name__ == "__main__":
-    ### Attention Test
-    # x = torch.randn(2, 5, 512)
-    # mask = torch.tensor([[True, False, True, False, False],[False, True, False, False, False]])
-    # B, N = mask.shape
-    # mask = mask[:,None,:].repeat(1, N, 1)
-    # mask_eye = ~torch.eye(N).bool()
-    # mask_eye = mask_eye[None,:,:]
-    # mask = mask * mask_eye
-    # mask = mask[:,None,:,:]
-    # mask = mask*(-1e9)
-    # model = Attention(dim=512, num_heads=8)
-    # out = model(x, mask=mask)
-    # print(out.shape)
-
-    # #### Cross Attention Test
-    # x = torch.randn(2, 10, 512)
-    # encoder_hidden_states = torch.randn(2, 12, 512)
-    # model = Block(dim=512, num_heads=8, is_cross_attention=True, encoder_dim=512)
-    # out = model(x, encoder_hidden_states)
-    # print(out.shape)
-
-    ### Tabular Transformer Encoder Test
-    cat_lengths_tabular, con_lengths_tabular = [5,4,2], [1,1]
-    args = DotDict({'tabular_embedding_dim': 512, 'tabular_transformer_num_layers': 4, 'embedding_dropout': 0.1,
-                    'embedding_dim': 2048, 'drop_rate': 0.0,
-                    'multimodal_embedding_dim': 512, 'multimodal_transformer_num_layers': 4})
-    model = TabularTransformerEncoder(args, cat_lengths_tabular, con_lengths_tabular)
-    x = torch.tensor([[4.0, 3.0, 0.0, 0.2, -0.1],
-                     [2.0, 1.0, 1.0, -0.5, 0.2]], dtype=torch.float32)
-    mask = torch.tensor([[True, True, False, False, False],[True, True, False, False, False]])
-    mask_special = torch.tensor([[True, False, False, False, False],[False, True, False, False, False]])
-    out = model(x, mask=mask, mask_special=mask_special)
-    print(out.shape)    
-
-    # ### Multimodal Transformer Encoder Test
-    # x = torch.randn(2, 6, 512)
-    # image_features = torch.randn(2, 49, 2048)
-    # model = MultimodalTransformerEncoder(args)
-    # out = model(x, image_features)
-    # print(out.shape)
-    # print(out)
-
-    # ### Tabular Predictor Test
-    # multimodal_features = torch.randn(2, 6, 512)
-    # model = TabularPredictor(args, cat_lengths_tabular, con_lengths_tabular)
-    # out = model(multimodal_features)
-    # for y in out:
-    #     print(y.shape)
-    #     print(y)  
-

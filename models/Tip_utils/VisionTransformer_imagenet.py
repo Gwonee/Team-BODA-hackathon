@@ -10,7 +10,6 @@ import math
 import torch.utils.model_zoo as model_zoo
 from os.path import join
 
-
 class Mlp(nn.Module):
     def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU, drop=0.):
         super().__init__()
@@ -27,8 +26,8 @@ class Mlp(nn.Module):
         x = self.drop(x)
         x = self.fc2(x)
         x = self.drop(x)
-        return x
 
+        return x
 
 class Attention(nn.Module):
     def __init__(self, dim, num_heads=8, qkv_bias=False, qk_scale=None, attn_drop=0., proj_drop=0., with_qkv=True):
@@ -41,6 +40,7 @@ class Attention(nn.Module):
            self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
            self.proj = nn.Linear(dim, dim)
            self.proj_drop = nn.Dropout(proj_drop)
+
         self.attn_drop = nn.Dropout(attn_drop)
 
     def forward(self, x):
@@ -48,6 +48,7 @@ class Attention(nn.Module):
         if self.with_qkv:
            qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
            q, k, v = qkv[0], qkv[1], qkv[2]
+
         else:
            qkv = x.reshape(B, N, self.num_heads, C // self.num_heads).permute(0, 2, 1, 3)
            q, k, v  = qkv, qkv, qkv
@@ -60,6 +61,7 @@ class Attention(nn.Module):
         if self.with_qkv:
            x = self.proj(x)
            x = self.proj_drop(x)
+
         return x
 
 
@@ -88,9 +90,8 @@ class CrossAttention(nn.Module):
         out = (attn @ v).transpose(1, 2).reshape(B, N, K)
         out = self.proj(out)
         out = self.proj_drop(out)
+
         return out
-
-
 
 class Block(nn.Module):
     def __init__(self, dim, num_heads, mlp_ratio=4., scale=0.5, qkv_bias=False, qk_scale=None, drop=0., attn_drop=0.,
@@ -116,8 +117,8 @@ class Block(nn.Module):
         xs = self.norm2(x) 
         xs = self.mlp(xs)
         x = x+self.drop_path(xs)
-        return x
 
+        return x
 
 class PatchEmbed(nn.Module):
     """ Image to Patch Embedding
@@ -136,8 +137,8 @@ class PatchEmbed(nn.Module):
     def forward(self, x):
         x = self.proj(x)
         x = x.flatten(2).transpose(1, 2)
-        return x
 
+        return x
 
 class ViT_ImageNet(nn.Module):
     def __init__(self, img_size=128, patch_size=16, in_chans=3, embed_dim=384, depth=12,
@@ -179,18 +180,22 @@ class ViT_ImageNet(nn.Module):
                 trunc_normal_(m.weight, std=.02)
                 if isinstance(m, nn.Linear) and m.bias is not None:
                     nn.init.constant_(m.bias, 0)
+
             elif isinstance(m, nn.LayerNorm):
                 nn.init.constant_(m.bias, 0)
                 nn.init.constant_(m.weight, 1.0)
+
             elif isinstance(m, nn.Conv2d):
                 fan_out = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 fan_out //= m.groups
                 m.weight.data.normal_(0, math.sqrt(2.0 / fan_out))
                 if m.bias is not None:
                     m.bias.data.zero_()
+
             elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
+                
         self.apply(_init_weights)
 
         if self.pretrained == True:
@@ -203,7 +208,6 @@ class ViT_ImageNet(nn.Module):
             print('Unexpected keys: {}'.format(msg.unexpected_keys))
             print(f'Successfully load {self.pretrained_name}')
             torch.cuda.empty_cache()
-
 
     def forward(self, x):
         B,C,H,W = x.shape
@@ -219,18 +223,10 @@ class ViT_ImageNet(nn.Module):
         # x = rearrange(x[:,1:,:], 'b (h w) c -> b c h w', h=H//self.patch_size, w=W//self.patch_size)
         return [x]
     
-
-
 def create_vit(args):
     model = ViT_ImageNet(
         img_size=args.img_size, patch_size=args.patch_size, embed_dim=args.embedding_dim, depth=args.depth, num_heads=args.num_heads, mlp_ratio=args.mlp_ratio, qkv_bias=True,
         norm_layer=partial(nn.LayerNorm, eps=1e-6), drop_rate=args.imaging_dropout_rate, 
         pretrained=args.imaging_pretrained, pretrained_path=args.imaging_pretrained_path, pretrained_name=args.imaging_pretrained_name)
+
     return model
-
-
-if __name__=='__main__':
-    model = ViT_ImageNet(pretrained=True, pretrained_path='/bigdata/siyi/data/pretrained', pretrained_name='deit_small_patch16_224-cd65a155.pth')
-    x = torch.randn(64,3,128,128)
-    y = model(x)
-    print(y.shape)
