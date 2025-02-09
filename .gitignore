@@ -28,6 +28,8 @@ MANIFEST
 features/
 *.ckpt
 outputs/
+checkpoint/
+TIP/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -53,6 +55,7 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+data/
 
 # Translations
 *.mo
