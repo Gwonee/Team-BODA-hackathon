@@ -34,6 +34,7 @@ def load_model(model_path, device):
     except ImportError:
         pass
 
+
     model.to(device)
     model.eval()
 
@@ -90,6 +91,7 @@ def preprocess_data(image_path, tabular_data, config, device):
         torch.tensor(encoded_categorical, dtype=torch.float32).unsqueeze(0).to(device)
     )
 
+
     continuous_features = []
     for col in config["table_mean"].keys():
         if col in tabular_data:
@@ -119,6 +121,7 @@ def infer_sales_amount_and_features(model, image_path, tabular_data, config, dev
     tabular_features = torch.cat([categorical, continuous], dim=1)
     mask = torch.ones(tabular_features.shape, device=tabular_features.device)
 
+
     model_input = [image, tabular_features, mask]
 
     with torch.no_grad():
@@ -137,6 +140,7 @@ def infer_sales_amount_and_features(model, image_path, tabular_data, config, dev
         orig_val = round(orig_val, 1)
         denorm_continuous[col] = orig_val
 
+
     decoded_categorical = {}
     for i, col in enumerate(config["categorical_columns"]):
         key = int(categorical[0][i].item())
@@ -144,3 +148,4 @@ def infer_sales_amount_and_features(model, image_path, tabular_data, config, dev
         decoded_categorical[col] = cat_val
 
     return sales_amt, denorm_continuous, decoded_categorical
+
