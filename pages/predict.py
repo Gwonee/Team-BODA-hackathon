@@ -16,7 +16,7 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 from models.Tip_utils.Tip_downstream import TIPBackbone
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 def get_image_base64(image_path):
     with open(image_path, "rb") as img_file:
