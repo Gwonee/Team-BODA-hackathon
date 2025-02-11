@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 # convert jpg image to numpy array
 def process_DVM(
-    DVM_feature_folder = 'path/your/own/feature'): 
+    DVM_feature_folder = '/data/ephemeral/home/data/base_features'): 
     for split in ['train', 'val', 'test']:
         img_paths  = torch.load(os.path.join(DVM_feature_folder, '{}_paths_all_views.pt'.format(split)))
         np_paths = []
@@ -27,4 +27,4 @@ def process_DVM(
             
 
 if __name__ == '__main__':
-    process_DVM('path/your/own/feature')
+    process_DVM('/data/ephemeral/home/data/base_features')
