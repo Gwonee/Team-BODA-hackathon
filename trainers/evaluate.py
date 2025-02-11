@@ -21,6 +21,20 @@ from models.Evaluator_regression import Evaluator_Regression
 
 from utils.utils import grab_arg_from_checkpoint, grab_hard_eval_image_augmentations, grab_wids, create_logdir
 
+class SaveFullModelEveryNEpochs(pl.Callback):
+    def __init__(self, save_dir, save_interval=10):
+        super().__init__()
+        self.save_dir = save_dir
+        self.save_interval = save_interval
+        os.makedirs(self.save_dir, exist_ok=True)
+
+    def on_train_epoch_end(self, trainer, pl_module):
+        epoch = trainer.current_epoch + 1  # 1부터 시작하도록
+        if epoch % self.save_interval == 0:
+            save_path = os.path.join(self.save_dir, f"model_epoch_{epoch}.pt")
+            torch.save(pl_module, save_path)
+            print(f"Saved full model at {save_path}")
+
 def load_datasets(hparams):
   if hparams.eval_datatype=='imaging':
       train_dataset = ImageDataset(hparams.data_train_eval_imaging, hparams.labels_train_eval_imaging, hparams.delete_segmentation, hparams.eval_train_augment_rate, grab_arg_from_checkpoint(hparams, 'img_size'), target=hparams.target, train=True, live_loading=hparams.live_loading, task=hparams.task,
