@@ -231,7 +231,14 @@ def result_page():
                         value_class = "prediction-value"
 
                     if isinstance(value, (int, float)):
-                        formatted_value = f"{float(value):,.1f}" if isinstance(value, float) or '.' in str(value) else f"{int(value):,}"
+                        if isinstance(value, float):
+                            if key == 'Engine_size':
+                                formatted_value = f"{value:,}"
+                            else:
+                                rounded_value = round(value)
+                                formatted_value = f"{rounded_value:,}" 
+                        else:
+                            formatted_value = f"{value:,}"
                     else:
                         formatted_value = value
 
