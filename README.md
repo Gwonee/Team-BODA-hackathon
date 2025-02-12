@@ -54,9 +54,10 @@ streamlit run run_streamlit.py
 **예시 데이터**<br>
 | 항목               | data/examples/ex_image1.jpg  | data/examples/ex_image2.jpg |
 |:-------------------|:---------------------------------------------------:|:-----------------------------------------------:|
+| **모델명**           | Focus                  |  DS3                      |
 | **제조사**          | Ford                                                | Citroen                                         |
 | **차체 유형**        | Hatchback                                           | Hatchback                                       |
-| **차량 색상**        | Green                                               | Yellow                                          |
+| **차량 색상**        | White                                               | Yellow                                          |
 | **연료 종류**        | Petrol                                              | Diesel                                          |
 | **변속기 종류**       | Manual                                              | Manual                                          |
 | **좌석 수**          | 5                                                   | 4                                               |
