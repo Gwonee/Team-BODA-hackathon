@@ -48,7 +48,9 @@ streamlit run run_streamlit.py
 ```
 <br>
 모델 checkpoint는 아래 링크에서 받아 configs/models 폴더에 넣어주시면 됩니다.<br>
+
 [huggingface](https://huggingface.co/Gwonee/BODA)
+
 <br><br>
 
 **예시 데이터**<br>
